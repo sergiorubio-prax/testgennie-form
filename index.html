@@ -98,6 +98,9 @@
   }
   pre.empty { color: var(--muted); font-style: italic; display: flex; align-items: center; justify-content: center; text-align: center; }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  details.instr { margin-top: 10px; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+  details.instr summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details.instr pre { min-height: 0; margin-top: 10px; }
   .status { font-size: 13px; margin-top: 8px; min-height: 18px; color: var(--ok); }
   ol { margin: 0; padding-left: 20px; color: var(--muted); }
 </style>
@@ -132,9 +135,13 @@
   </section>
 
   <section class="card" aria-labelledby="previewHeading">
-    <h2 id="previewHeading">Generated request</h2>
-    <p class="hint" style="margin:0 0 4px">This is exactly what gets copied. It updates as you fill in the form.</p>
+    <h2 id="previewHeading">⚡ Generated Request Preview</h2>
+    <p class="hint" style="margin:0 0 4px">📋 Execution Instructions (READ FIRST!) + ---</p>
     <pre id="preview" aria-live="polite"></pre>
+    <details class="instr">
+      <summary>👁️ View pre-pended instructions (sent FIRST)</summary>
+      <pre id="instructions"></pre>
+    </details>
     <div class="actions" style="margin-top:12px">
       <button id="copy" type="button">Copy Request</button>
       <button id="reset" type="button" class="secondary">Reset</button>
@@ -167,7 +174,20 @@
     ["Related Work Items", "Related and dependency links"],
   ];
 
+  // Sent ahead of every request, followed by a --- divider.
+  const INSTRUCTIONS = [
+    "📋 EXECUTION INSTRUCTIONS (READ FIRST!):",
+    "1. Read the ENTIRE markdown workflow file first BEFORE doing anything - process every section thoroughly before starting NO MATTER WHAT",
+    "2. Take all the time needed to understand each guideline and requirement",
+    "3. Display ALL outputs with beautiful formatting:",
+    "   • Use proper markdown tables with clean alignment",
+    "   • Include clear section headers and dividers",
+    "   • Show organized, visually appealing summaries",
+    "   • Follow ALL formatting guidelines specified in the markdown exactly",
+  ].join("\n");
+
   const $ = (id) => document.getElementById(id);
+  $("instructions").textContent = INSTRUCTIONS;
 
   const sourcesEl = $("sources");
   SOURCES.forEach(([label, desc], i) => {
@@ -222,20 +242,23 @@
       return null;
     }
 
-    const lines = [];
-    let cmd = `/generate-qa-tests ${pbi.url}`;
-    if (plan.url) cmd += ` test plan: ${plan.url}`;
-    lines.push(cmd, "");
-    lines.push(`Generate test cases for PBI #${pbi.id}`, "");
-    lines.push("CONTEXT SOURCES");
+    // Visible request body (shown in the preview box).
+    const lines = [`🎯 Generate test cases for PBI ${pbi.url}`];
+    if (plan.url) lines.push(`Test plan: ${plan.url}`);
+    lines.push("", "CONTEXT SOURCES");
     document.querySelectorAll("#sources input").forEach((cb) => {
       lines.push(`- ${cb.dataset.label}: ${cb.checked ? "ON" : "OFF"}`);
     });
     const notes = $("notes").value.trim();
     if (notes) lines.push("", "NOTES", notes);
+    const body = lines.join("\n");
 
-    const text = lines.join("\n");
-    $("preview").textContent = text;
+    // Copied text: the slash command loads the skill, then instructions, divider, request.
+    let cmd = `/generate-qa-tests ${pbi.url}`;
+    if (plan.url) cmd += ` test plan: ${plan.url}`;
+    const text = [cmd, "", INSTRUCTIONS, "", "---", "", body].join("\n");
+
+    $("preview").textContent = body;
     $("preview").classList.remove("empty");
     $("copy").disabled = false;
     return text;
