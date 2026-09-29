@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Case Generator</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1d2330;
+    --muted: #5d6677;
+    --border: #d9dde5;
+    --accent: #0b6bcb;
+    --accent-text: #ffffff;
+    --error: #c62828;
+    --ok: #1b7f3b;
+    --code-bg: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --card: #1c2027;
+      --text: #e6e9ef;
+      --muted: #9aa3b2;
+      --border: #333a45;
+      --accent: #4c9be8;
+      --accent-text: #0d1117;
+      --error: #ef6b6b;
+      --ok: #5cc27d;
+      --code-bg: #242933;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  label:first-of-type { margin-top: 0; }
+  .hint { color: var(--muted); font-size: 13px; font-weight: 400; }
+  input[type=text], input[type=url], textarea {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+  }
+  textarea { min-height: 72px; resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .error { color: var(--error); font-size: 13px; min-height: 18px; margin-top: 4px; }
+  .detected { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .sources { display: grid; gap: 8px; }
+  .source {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  }
+  .source span small { display: block; color: var(--muted); font-size: 12px; }
+  .switch { position: relative; width: 42px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; background: var(--border); border-radius: 24px; cursor: pointer;
+    transition: background .15s;
+  }
+  .slider::before {
+    content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: transform .15s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  .switch input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-text);
+  }
+  button.secondary { background: transparent; color: var(--accent); }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px; white-space: pre-wrap; word-break: break-word; margin: 12px 0 0;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .status { font-size: 13px; margin-top: 8px; min-height: 18px; color: var(--ok); }
+  ol { margin: 0; padding-left: 20px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Test Case Generator</h1>
+  <p class="sub">Build a <code>/generate-qa-tests</code> request, copy it, and paste it into Claude Code.</p>
+
+  <section class="card">
+    <h2>Work item</h2>
+    <label for="pbi">PBI or user story <span class="hint">— URL or ID</span></label>
+    <input id="pbi" type="text" placeholder="https://sufs.visualstudio.com/ApplyPlatform/_workitems/edit/2056344" autocomplete="off">
+    <div class="detected" id="pbiDetected"></div>
+    <div class="error" id="pbiError"></div>
+
+    <label for="plan">Test plan URL <span class="hint">— optional</span></label>
+    <input id="plan" type="url" placeholder="https://sufs.visualstudio.com/ApplyPlatform/_testPlans/define?planId=123&suiteId=456" autocomplete="off">
+    <div class="detected" id="planDetected"></div>
+    <div class="error" id="planError"></div>
+  </section>
+
+  <section class="card">
+    <h2>Context sources</h2>
+    <div class="sources" id="sources"></div>
+  </section>
+
+  <section class="card">
+    <h2>Notes for the generator <span class="hint">— optional</span></h2>
+    <label for="notes" class="hint" style="font-weight:400">Anything to focus on or avoid, e.g. "focus on mobile", "max 5 test cases".</label>
+    <textarea id="notes"></textarea>
+  </section>
+
+  <section class="card">
+    <div class="actions">
+      <button id="copy" type="button">Copy Request</button>
+      <button id="reset" type="button" class="secondary">Reset</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <pre id="preview" aria-label="Request preview"></pre>
+  </section>
+
+  <section class="card">
+    <h2>How to use</h2>
+    <ol>
+      <li>Enter the PBI or user story URL (or just its ID for ApplyPlatform).</li>
+      <li>Optionally add a test plan URL so new test cases are added to that suite.</li>
+      <li>Turn off any context sources you don't want read.</li>
+      <li>Click "Copy Request" and paste it into Claude Code.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+  const DEFAULT_ORG = "sufs";
+  const DEFAULT_PROJECT = "ApplyPlatform";
+
+  // Labels must match what the generate-qa-tests skill parses in the CONTEXT SOURCES block.
+  const SOURCES = [
+    ["Description", "PBI description / user story"],
+    ["Acceptance Criteria", "AC items and requirements"],
+    ["Discussion", "Comments and conversation history"],
+    ["Attachments", "Files and embedded images"],
+    ["Links & URLs", "Figma, hyperlinks, external references"],
+    ["Related Work Items", "Related and dependency links"],
+  ];
+
+  const $ = (id) => document.getElementById(id);
+
+  const sourcesEl = $("sources");
+  SOURCES.forEach(([label, desc], i) => {
+    const row = document.createElement("div");
+    row.className = "source";
+    row.innerHTML =
+      `<span id="src-label-${i}">${label}<small>${desc}</small></span>` +
+      `<label class="switch"><input type="checkbox" checked data-label="${label}" aria-labelledby="src-label-${i}"><span class="slider"></span></label>`;
+    sourcesEl.appendChild(row);
+  });
+
+  function parseWorkItem(raw) {
+    const v = raw.trim();
+    if (!v) return { empty: true };
+    if (/^\d+$/.test(v)) {
+      return { id: v, org: DEFAULT_ORG, project: DEFAULT_PROJECT,
+               url: `https://${DEFAULT_ORG}.visualstudio.com/${DEFAULT_PROJECT}/_workitems/edit/${v}` };
+    }
+    const m = v.match(/^https?:\/\/([^.\/]+)\.visualstudio\.com\/([^\/]+)\/_workitems\/edit\/(\d+)/i)
+           || v.match(/^https?:\/\/dev\.azure\.com\/([^\/]+)\/([^\/]+)\/_workitems\/edit\/(\d+)/i);
+    if (!m) return { error: "Enter a numeric ID or a work item URL containing /_workitems/edit/{ID}." };
+    return { id: m[3], org: m[1], project: decodeURIComponent(m[2]),
+             url: v.split(/[?#]/)[0] };
+  }
+
+  function parsePlan(raw) {
+    const v = raw.trim();
+    if (!v) return { empty: true };
+    let u;
+    try { u = new URL(v); } catch { return { error: "Not a valid URL." }; }
+    const planId = u.searchParams.get("planId");
+    const suiteId = u.searchParams.get("suiteId");
+    if (!planId || !suiteId) return { error: "The URL needs both planId and suiteId (open the suite in Test Plans and copy its URL)." };
+    return { url: v, planId, suiteId };
+  }
+
+  function build() {
+    const pbi = parseWorkItem($("pbi").value);
+    const plan = parsePlan($("plan").value);
+
+    $("pbiError").textContent = pbi.error || "";
+    $("pbiDetected").textContent = pbi.id ? `Work item #${pbi.id} in ${pbi.project} (${pbi.org})` : "";
+    $("planError").textContent = plan.error || "";
+    $("planDetected").textContent = plan.planId ? `Plan ${plan.planId}, suite ${plan.suiteId}` : "";
+
+    if (!pbi.id || plan.error) {
+      $("preview").textContent = pbi.empty ? "Enter a PBI to build the request." : "Fix the errors above to build the request.";
+      $("copy").disabled = true;
+      return null;
+    }
+
+    const lines = [];
+    let cmd = `/generate-qa-tests ${pbi.url}`;
+    if (plan.url) cmd += ` test plan: ${plan.url}`;
+    lines.push(cmd, "");
+    lines.push(`Generate test cases for PBI #${pbi.id}`, "");
+    lines.push("CONTEXT SOURCES");
+    document.querySelectorAll("#sources input").forEach((cb) => {
+      lines.push(`- ${cb.dataset.label}: ${cb.checked ? "ON" : "OFF"}`);
+    });
+    const notes = $("notes").value.trim();
+    if (notes) lines.push("", "NOTES", notes);
+
+    const text = lines.join("\n");
+    $("preview").textContent = text;
+    $("copy").disabled = false;
+    return text;
+  }
+
+  async function copy() {
+    const text = build();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    $("status").textContent = "Copied. Paste it into Claude Code.";
+    setTimeout(() => ($("status").textContent = ""), 3000);
+  }
+
+  function reset() {
+    $("pbi").value = "";
+    $("plan").value = "";
+    $("notes").value = "";
+    document.querySelectorAll("#sources input").forEach((cb) => (cb.checked = true));
+    build();
+  }
+
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  $("copy").addEventListener("click", copy);
+  $("reset").addEventListener("click", reset);
+  build();
+</script>
+</body>
+</html>
