@@ -92,9 +92,12 @@
   button.secondary { background: transparent; color: var(--accent); }
   pre {
     background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
-    padding: 12px; white-space: pre-wrap; word-break: break-word; margin: 12px 0 0;
+    padding: 12px; white-space: pre-wrap; word-break: break-word; margin: 8px 0 0;
+    min-height: 140px;
     font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+  pre.empty { color: var(--muted); font-style: italic; display: flex; align-items: center; justify-content: center; text-align: center; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
   .status { font-size: 13px; margin-top: 8px; min-height: 18px; color: var(--ok); }
   ol { margin: 0; padding-left: 20px; color: var(--muted); }
 </style>
@@ -128,13 +131,15 @@
     <textarea id="notes"></textarea>
   </section>
 
-  <section class="card">
-    <div class="actions">
+  <section class="card" aria-labelledby="previewHeading">
+    <h2 id="previewHeading">Generated request</h2>
+    <p class="hint" style="margin:0 0 4px">This is exactly what gets copied. It updates as you fill in the form.</p>
+    <pre id="preview" aria-live="polite"></pre>
+    <div class="actions" style="margin-top:12px">
       <button id="copy" type="button">Copy Request</button>
       <button id="reset" type="button" class="secondary">Reset</button>
     </div>
     <div class="status" id="status" role="status"></div>
-    <pre id="preview" aria-label="Request preview"></pre>
   </section>
 
   <section class="card">
@@ -209,7 +214,10 @@
     $("planDetected").textContent = plan.planId ? `Plan ${plan.planId}, suite ${plan.suiteId}` : "";
 
     if (!pbi.id || plan.error) {
-      $("preview").textContent = pbi.empty ? "Enter a PBI to build the request." : "Fix the errors above to build the request.";
+      $("preview").textContent = pbi.empty
+        ? "Your request will appear here once you enter a PBI or user story."
+        : "Fix the errors above to build the request.";
+      $("preview").classList.add("empty");
       $("copy").disabled = true;
       return null;
     }
@@ -228,6 +236,7 @@
 
     const text = lines.join("\n");
     $("preview").textContent = text;
+    $("preview").classList.remove("empty");
     $("copy").disabled = false;
     return text;
   }
